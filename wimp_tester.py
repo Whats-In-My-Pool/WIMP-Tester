@@ -34,21 +34,28 @@ def run_tests():
     for strip in current_strips:
         results = []
         id = strip["pk"]
+        tests = get_chemical_tests(strip["fields"]["test_strip"])
 
         image = capture_image()
+
+        colors = get_results(image)
+
+        if len(colors) != len(tests):
+            print("error: incorrect number of tests found")
+            return
+
 
         for test in get_chemical_tests(strip["fields"]["test_strip"]):
             result = {}
             result["pk"] = test["pk"]
 
-            region = (test["fields"]["region_x1"], test["fields"]["region_y1"], test["fields"]["region_x2"],
-                      test["fields"]["region_y2"])
+            pos = test["fields"]["test_number"]
 
-            color = get_result(image, region)
+            color = colors[len(colors) - pos]
 
-            result["r"] = color[0]
-            result["g"] = color[1]
-            result["b"] = color[2]
+            result["r"] = int(color[0])
+            result["g"] = int(color[1])
+            result["b"] = int(color[2])
 
             results.append(result)
 
