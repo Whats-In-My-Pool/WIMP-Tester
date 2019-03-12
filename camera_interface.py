@@ -4,21 +4,21 @@ import cv2
 alpha = 1
 beta = 2.0
 
-radius_avg = 25
-
+radius_avg = 20
+crop_box = 0
 
 def find_regions(image):
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
     hue, saturation, value = cv2.split(hsv)
 
-    # hue = cv2.bitwise_not(hue)
+    hue = cv2.bitwise_not(hue)
 
     blur_sat = cv2.GaussianBlur(saturation, (5, 5), 0)
 
     blur_hue = cv2.GaussianBlur(hue, (5, 5), 0)
 
-    retval, thresholded_sat = cv2.threshold(blur_sat, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    retval, thresholded_sat = cv2.threshold(blur_sat, 40, 255, cv2.THRESH_BINARY)
 
     retval, thresholded_hue = cv2.threshold(blur_hue, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
@@ -26,7 +26,7 @@ def find_regions(image):
 
     median_filtered = cv2.medianBlur(thresholded, 5)
 
-    _, contours, hierarchy = cv2.findContours(median_filtered, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    contours, hierarchy = cv2.findContours(median_filtered, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
     contour_list = []
     for contour in contours:
@@ -77,7 +77,10 @@ def get_avg(array):
 
             count += 1
 
-    return r / count, g / count, b / count
+    if count != 0:
+        return r / count, g / count, b / count
+    else:
+        return 0, 0, 0
 
 
 def get_adjusted_avg(array):
@@ -112,16 +115,14 @@ def convert_bgr_rbg(bgr):
 
 
 def capture_image():
-    return cv2.imread("test4.jpg")
+    return cv2.imread("new_model.jpg")
 
 
 def demo(img):
     # Read image
     image = cv2.imread(img)
     image = cv2.resize(image, (0, 0), fx=0.25, fy=0.25)
-
-    cv2.imshow('Original Image', image)
-    cv2.waitKey(0)
+    #image = image[235:304, 0:819]
 
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     cv2.imshow('HSV Image', hsv)
@@ -133,34 +134,43 @@ def demo(img):
 
     hue = cv2.bitwise_not(hue)
 
+    cv2.imshow('Value Image', value)
+
+    cv2.imshow('Hue Image', hue)
+    cv2.imshow('Saturation', saturation)
+    cv2.waitKey(0)
+
     blur_sat = cv2.GaussianBlur(saturation, (5, 5), 0)
 
     blur_hue = cv2.GaussianBlur(hue, (5, 5), 0)
+
+
 
     # retval, thresholded_val = cv2.threshold(blur_val, 150, 255, cv2.THRESH_BINARY)
     # cv2.imshow('Thresholded Image', thresholded_val)
     # cv2.waitKey(0)
 
-    retval, thresholded_sat = cv2.threshold(blur_sat, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    cv2.imshow('Thresholded Image', thresholded_sat)
+    retval, thresholded_sat = cv2.threshold(blur_sat, 40, 255, cv2.THRESH_BINARY)
+    cv2.imshow('Thresholded Sat Image', thresholded_sat)
     cv2.waitKey(0)
 
     retval, thresholded_hue = cv2.threshold(blur_hue, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    cv2.imshow('Thresholded Image', thresholded_hue)
+    cv2.imshow('Thresholded Hue Image', thresholded_hue)
     cv2.waitKey(0)
 
     thresholded = np.add(thresholded_hue, thresholded_sat)
+    #thresholded = thresholded_sat
 
     medianFiltered = cv2.medianBlur(thresholded, 5)
     cv2.imshow('Median Filtered Image', medianFiltered)
     cv2.waitKey(0)
 
-    _, contours, hierarchy = cv2.findContours(medianFiltered, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    contours, hierarchy = cv2.findContours(medianFiltered, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
     contour_list = []
     for contour in contours:
         area = cv2.contourArea(contour)
-        if area > 100:
+        if area > 1000:
             contour_list.append(contour)
 
     cv2.drawContours(image, contour_list, -1, (255, 0, 0), 2)
@@ -189,6 +199,6 @@ def demo(img):
 
 
 if __name__ == "__main__":
-    demo("test4.jpg")
+    demo("new_model.jpg")
     # image = capture_image()
     # get_results(image)
