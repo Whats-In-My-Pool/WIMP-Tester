@@ -1,5 +1,7 @@
+import datetime
+import random
+
 import requests
-import time
 from camera_interface import *
 
 
@@ -63,15 +65,23 @@ def run_tests():
         print(results)
 
 
+def dummy_tests():
+    current_strips = get_current_tests()
+
+    pk = current_strips[0]["pk"]
+
+    for i in range(1, 6):
+        results = []
+        for test in get_chemical_tests(current_strips[0]["fields"]["test_strip"]):
+            result = {}
+            result["pk"] = test["pk"]
+            result["r"] = random.randint(0, 255)
+            result["g"] = random.randint(0, 255)
+            result["b"] = random.randint(0, 255)
+            results.append(result)
+
+        post_result(pk, datetime.datetime(2019, i, 14, 12, 0).timestamp(), results)
+
+
 if __name__ == "__main__":
     run_tests()
-
-
-
-
-
-
-
-
-
-

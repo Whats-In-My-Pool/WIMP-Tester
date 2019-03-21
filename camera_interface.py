@@ -1,5 +1,6 @@
 import numpy as np
 import cv2
+import time
 
 alpha = 1
 beta = 2.0
@@ -115,7 +116,23 @@ def convert_bgr_rbg(bgr):
 
 
 def capture_image():
-    return cv2.imread("new_model.jpg")
+    try:
+        from picamera.array import PiRGBArray
+        from picamera import PiCamera
+
+        camera = PiCamera()
+        rawCapture = PiRGBArray(camera)
+
+        # allow the camera to warmup
+        time.sleep(0.1)
+
+        camera.capture(rawCapture, format="bgr")
+        image = rawCapture.array
+
+        return image
+    except Exception as e:
+        print(e)
+        return cv2.imread("new_model.jpg")
 
 
 def demo(img):
