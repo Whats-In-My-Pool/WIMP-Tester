@@ -2,6 +2,8 @@ import numpy as np
 import cv2
 import time
 
+LED_PIN = 18
+
 alpha = 1
 beta = 2.0
 
@@ -119,7 +121,15 @@ def capture_image():
     try:
         from picamera.array import PiRGBArray
         from picamera import PiCamera
+        import RPi.GPIO as GPIO
 
+        GPIO.setmode(GPIO.BCM)
+
+        GPIO.setup(LED_PIN, GPIO.OUT)
+
+        GPIO.output(LED_PIN, 1)
+
+        time.sleep(0.5)
         camera = PiCamera()
         rawCapture = PiRGBArray(camera)
 
@@ -128,6 +138,8 @@ def capture_image():
 
         camera.capture(rawCapture, format="bgr")
         image = rawCapture.array
+        GPIO.output(LED_PIN, 0)
+
 
         return image
     except Exception as e:
