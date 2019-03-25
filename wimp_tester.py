@@ -43,7 +43,7 @@ def run_tests():
         colors = get_results(image)
 
         if len(colors) != len(tests):
-            print("error: incorrect number of tests found")
+            print("error: incorrect number of tests found. %d tests found, should be %d!" % (len(colors), len(test)))
             return
 
 

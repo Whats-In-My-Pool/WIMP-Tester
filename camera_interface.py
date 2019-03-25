@@ -21,9 +21,9 @@ def find_regions(image):
 
     blur_hue = cv2.GaussianBlur(hue, (5, 5), 0)
 
-    retval, thresholded_sat = cv2.threshold(blur_sat, 40, 255, cv2.THRESH_BINARY)
+    retval, thresholded_sat = cv2.threshold(blur_sat, 70, 255, cv2.THRESH_BINARY)
 
-    retval, thresholded_hue = cv2.threshold(blur_hue, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    retval, thresholded_hue = cv2.threshold(blur_hue, 200, 255, cv2.THRESH_BINARY)
 
     thresholded = np.add(thresholded_hue, thresholded_sat)
 
@@ -34,7 +34,7 @@ def find_regions(image):
     contour_list = []
     for contour in contours:
         area = cv2.contourArea(contour)
-        if area > 100:
+        if area > 500:
             contour_list.append(contour)
 
     return contour_list
@@ -57,7 +57,6 @@ def get_color_in_regions(image, regions):
 
 
 def get_results(image):
-    image = cv2.resize(image, (0, 0), fx=0.25, fy=0.25)
 
     regions = find_regions(image)
 
@@ -122,36 +121,48 @@ def capture_image():
         from picamera.array import PiRGBArray
         from picamera import PiCamera
         import RPi.GPIO as GPIO
+        import io
 
         GPIO.setmode(GPIO.BCM)
 
-        GPIO.setup(LED_PIN, GPIO.OUT)
+        GPIO.setup(18, GPIO.OUT, initial=GPIO.LOW)
+        GPIO.output(18, 1)
+        time.sleep(1)
 
-        GPIO.output(LED_PIN, 1)
+        stream = io.BytesIO()
 
-        time.sleep(0.5)
-        camera = PiCamera()
-        rawCapture = PiRGBArray(camera)
+        with PiCamera() as camera:
+            time.sleep(3)
+            camera.resolution = (820, 616)
 
-        # allow the camera to warmup
-        time.sleep(0.1)
+            with PiRGBArray(camera) as stream:
+                camera.capture(stream, format='bgr')
+                time.sleep(1)
+                image = stream.array
 
-        camera.capture(rawCapture, format="bgr")
-        image = rawCapture.array
-        GPIO.output(LED_PIN, 0)
+        GPIO.output(18, 0)
 
+        time.sleep(2)
 
+        GPIO.cleanup()
+
+        image = image[230:300, 100:755]
+
+        image = cv2.flip(image, 1)
+
+        cv2.imwrite("tmp.png", image)
         return image
     except Exception as e:
         print(e)
-        return cv2.imread("new_model.jpg")
+        return cv2.imread("test_rig.png")
 
 
 def demo(img):
     # Read image
     image = cv2.imread(img)
-    image = cv2.resize(image, (0, 0), fx=0.25, fy=0.25)
-    #image = image[235:304, 0:819]
+
+
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     cv2.imshow('HSV Image', hsv)
@@ -161,7 +172,10 @@ def demo(img):
 
     # blur_val = cv2.GaussianBlur(value, (5, 5), 0)
 
+    #saturation = cv2.bitwise_not(saturation)
+
     hue = cv2.bitwise_not(hue)
+    value = cv2.bitwise_not(value)
 
     cv2.imshow('Value Image', value)
 
@@ -173,17 +187,17 @@ def demo(img):
 
     blur_hue = cv2.GaussianBlur(hue, (5, 5), 0)
 
+    #blur_val = cv2.GaussianBlur(value, (5, 5), 0)
 
+    #retval, thresholded_val = cv2.threshold(blur_val, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    #cv2.imshow('Thresholded Image', thresholded_val)
+    #cv2.waitKey(0)
 
-    # retval, thresholded_val = cv2.threshold(blur_val, 150, 255, cv2.THRESH_BINARY)
-    # cv2.imshow('Thresholded Image', thresholded_val)
-    # cv2.waitKey(0)
-
-    retval, thresholded_sat = cv2.threshold(blur_sat, 40, 255, cv2.THRESH_BINARY)
+    retval, thresholded_sat = cv2.threshold(blur_sat, 70, 255, cv2.THRESH_BINARY )
     cv2.imshow('Thresholded Sat Image', thresholded_sat)
     cv2.waitKey(0)
 
-    retval, thresholded_hue = cv2.threshold(blur_hue, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    retval, thresholded_hue = cv2.threshold(blur_hue, 200, 255, cv2.THRESH_BINARY)
     cv2.imshow('Thresholded Hue Image', thresholded_hue)
     cv2.waitKey(0)
 
@@ -199,7 +213,7 @@ def demo(img):
     contour_list = []
     for contour in contours:
         area = cv2.contourArea(contour)
-        if area > 1000:
+        if area > 500:
             contour_list.append(contour)
 
     cv2.drawContours(image, contour_list, -1, (255, 0, 0), 2)
@@ -228,6 +242,6 @@ def demo(img):
 
 
 if __name__ == "__main__":
-    demo("new_model.jpg")
+    demo("test_rig.png")
     # image = capture_image()
     # get_results(image)
