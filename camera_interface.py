@@ -146,11 +146,14 @@ def capture_image():
 
         GPIO.cleanup()
 
-        image = image[230:300, 100:755]
+        rows, cols, _ = image.shape
 
-        image = cv2.flip(image, 1)
+        rotM = cv2.getRotationMatrix2D((cols / 2, rows / 2), 90, 1)
+        rot_image = cv2.warpAffine(image, rotM, (cols, rows))
 
-        cv2.imwrite("tmp.png", image)
+        rot_image = rot_image[187:255, 162:786]
+
+        cv2.imwrite("tmp.png", rot_image)
         return image
     except Exception as e:
         print(e)
@@ -242,6 +245,6 @@ def demo(img):
 
 
 if __name__ == "__main__":
-    demo("test_rig.png")
+    demo("tmp.png")
     # image = capture_image()
     # get_results(image)
