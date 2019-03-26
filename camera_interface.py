@@ -148,7 +148,7 @@ def capture_image():
 
         rows, cols, _ = image.shape
 
-        rotM = cv2.getRotationMatrix2D((cols / 2, rows / 2), 90, 1)
+        rotM = cv2.getRotationMatrix2D((cols / 2, rows / 2), 4, 1)
         rot_image = cv2.warpAffine(image, rotM, (cols, rows))
 
         rot_image = rot_image[187:255, 162:786]
