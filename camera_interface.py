@@ -42,9 +42,9 @@ def find_regions(image):
 
 def get_color_in_regions(image, regions):
     results = []
-
     for c in regions:
         # compute the center of the contour
+
         M = cv2.moments(c)
         cX = int(M["m10"] / M["m00"])
         cY = int(M["m01"] / M["m00"])
@@ -53,7 +53,28 @@ def get_color_in_regions(image, regions):
 
         results.append(convert_bgr_rbg(avg))
 
+    if len(results) != 6:
+        pos_list = [34, 141, 258, 359, 475, 581]
+        results = []
+
+        for pos in pos_list:
+            avg = get_avg(image[30 - radius_avg:30 + radius_avg, pos - radius_avg:pos + radius_avg])
+            results.append(convert_bgr_rbg(avg))
+
     return results
+
+def split_image(image):
+    width = image.shape[1]
+    slice_width = int(width/6)
+
+    images = []
+
+    for i in range(0, 6):
+        starting_x = slice_width*i
+        slice = image[:, starting_x: starting_x + slice_width, :]
+        images.append(slice)
+
+    return images
 
 
 def get_results(image):
@@ -116,6 +137,8 @@ def convert_bgr_rbg(bgr):
     return bgr[2], bgr[1], bgr[0]
 
 
+
+
 def capture_image():
     try:
         from picamera.array import PiRGBArray
@@ -148,7 +171,7 @@ def capture_image():
 
         rows, cols, _ = image.shape
 
-        rotM = cv2.getRotationMatrix2D((cols / 2, rows / 2), 4, 1)
+        rotM = cv2.getRotationMatrix2D((cols / 2, rows / 2), -4, 1)
         rot_image = cv2.warpAffine(image, rotM, (cols, rows))
 
         rot_image = rot_image[187:255, 162:786]
@@ -157,7 +180,8 @@ def capture_image():
         return image
     except Exception as e:
         print(e)
-        return cv2.imread("test_rig.png")
+        img = cv2.imread("out.png")
+        return img
 
 
 def demo(img):
@@ -169,7 +193,6 @@ def demo(img):
 
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
     cv2.imshow('HSV Image', hsv)
-    cv2.waitKey(0)
 
     hue, saturation, value = cv2.split(hsv)
 
@@ -184,7 +207,6 @@ def demo(img):
 
     cv2.imshow('Hue Image', hue)
     cv2.imshow('Saturation', saturation)
-    cv2.waitKey(0)
 
     blur_sat = cv2.GaussianBlur(saturation, (5, 5), 0)
 
@@ -196,20 +218,17 @@ def demo(img):
     #cv2.imshow('Thresholded Image', thresholded_val)
     #cv2.waitKey(0)
 
-    retval, thresholded_sat = cv2.threshold(blur_sat, 70, 255, cv2.THRESH_BINARY )
+    retval, thresholded_sat = cv2.threshold(blur_sat, 70, 255, cv2.THRESH_BINARY)
     cv2.imshow('Thresholded Sat Image', thresholded_sat)
-    cv2.waitKey(0)
 
     retval, thresholded_hue = cv2.threshold(blur_hue, 200, 255, cv2.THRESH_BINARY)
     cv2.imshow('Thresholded Hue Image', thresholded_hue)
-    cv2.waitKey(0)
 
     thresholded = np.add(thresholded_hue, thresholded_sat)
     #thresholded = thresholded_sat
 
     medianFiltered = cv2.medianBlur(thresholded, 5)
     cv2.imshow('Median Filtered Image', medianFiltered)
-    cv2.waitKey(0)
 
     contours, hierarchy = cv2.findContours(medianFiltered, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
@@ -221,7 +240,6 @@ def demo(img):
 
     cv2.drawContours(image, contour_list, -1, (255, 0, 0), 2)
     cv2.imshow('Objects Detected', image)
-    cv2.waitKey(0)
     for c in contour_list:
         # compute the center of the contour
         M = cv2.moments(c)
@@ -238,6 +256,7 @@ def demo(img):
         cv2.putText(image, str(avg), (cX - 20, cY - 20),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
 
+
     # show the image
     cv2.imshow("Image", image)
     cv2.waitKey(0)
@@ -245,6 +264,13 @@ def demo(img):
 
 
 if __name__ == "__main__":
-    demo("tmp.png")
+    img = capture_image()
+    ndx = 0
+    for i in split_image(img):
+        cv2.imwrite("out%d.png" % ndx, i)
+        ndx = ndx+1
+
+
+    #demo("tmp.png")
     # image = capture_image()
     # get_results(image)
