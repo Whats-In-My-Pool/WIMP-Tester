@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 import time
+import colorsys
 from colormath.color_objects import sRGBColor, LabColor
 from colormath.color_conversions import convert_color
 from colormath.color_diff import delta_e_cie2000
@@ -25,24 +26,36 @@ def get_delta_e(color1, color2):
 
 
 def find_region(image, colors):
-
+    cv2.namedWindow("Region")
     matches = {}
     for color in colors:
-        lower = np.array([color[0] - 10, color[1] - 10, color[2] - 10], dtype="uint8")
-        upper = np.array([color[0] + 10, color[1] + 10, color[2] + 10], dtype="uint8")
+        color = (color[0] - 132, color[1] - 150, color[2] - 119)
+        color = colorsys.rgb_to_hsv(*color)
+
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+
+        lower = np.array([color[0] - 75, color[1] - 75, color[2] - 75])
+        upper = np.array([color[0] + 75, color[1] + 75, color[2] + 75])
 
         mask = cv2.inRange(image, lower, upper)
         output = cv2.bitwise_and(image, image, mask=mask)
 
-        hsv = cv2.cvtColor(output, cv2.COLOR_BGR2HSV)
-        hue, saturation, value = cv2.split(hsv)
+        hue, saturation, value = cv2.split(output)
+        cv2.resizeWindow('Region', 250, 250)
+        cv2.imshow("Region", output)
+        cv2.waitKey(0)
 
         retval, threshold = cv2.threshold(value, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
         contours, hierarchy = cv2.findContours(threshold, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
         if len(contours) > 0:
-            matches[color] = contours[0]
+            largest_contour = contours[0]
+            for contour in contours[1:]:
+                if cv2.contourArea(contour) > cv2.contourArea(largest_contour):
+                    largest_contour = contour
+
+            matches[color] = largest_contour
 
     if len(matches) > 0:
         match_list = []
@@ -65,12 +78,13 @@ def find_region(image, colors):
                 best_match = match
                 best_match_delta = delta
 
-        cv2.drawContours(image, [best_match[1]], -1, (0, 255, 0), 2)
+        cv2.drawContours(image, [best_match[1]], -1, (0, 0, 0), 2)
 
-        cv2.imshow("image", image)
+        cv2.imshow("Region", image)
         cv2.waitKey(0)
 
-        cv2.destroyAllWindows()
+
+    cv2.destroyAllWindows()
 
 '''
 def find_region(image, sat_threshold, hue_threshold, inv_sat, inv_hue, sat_thresh_arg, hue_thresh_arg):
@@ -205,8 +219,6 @@ def convert_bgr_rbg(bgr):
     return bgr[2], bgr[1], bgr[0]
 
 
-
-
 def capture_image():
     try:
         from picamera.array import PiRGBArray
@@ -220,16 +232,20 @@ def capture_image():
         GPIO.output(18, 1)
         time.sleep(1)
 
-        stream = io.BytesIO()
-
         with PiCamera() as camera:
             time.sleep(3)
             camera.resolution = (820, 616)
 
+            camera.awb_mode('sunlight')
+            camera.exposure_mode('backlight')
+
+            camera.brightness(75)
             with PiRGBArray(camera) as stream:
                 camera.capture(stream, format='bgr')
                 time.sleep(1)
                 image = stream.array
+
+
 
         GPIO.output(18, 0)
 
@@ -239,16 +255,16 @@ def capture_image():
 
         rows, cols, _ = image.shape
 
-        rotM = cv2.getRotationMatrix2D((cols / 2, rows / 2), -4, 1)
+        rotM = cv2.getRotationMatrix2D((cols / 2, rows / 2), -92, 1)
         rot_image = cv2.warpAffine(image, rotM, (cols, rows))
 
-        rot_image = rot_image[187:255, 162:786]
+        rot_image = rot_image[300:355, 102:680]
 
         cv2.imwrite("tmp.png", rot_image)
         return image
     except Exception as e:
         print(e)
-        img = cv2.imread("best_case.png")
+        img = cv2.imread("new_model.jpg")
         return img
 
 
@@ -333,13 +349,18 @@ def demo(img):
 
 if __name__ == "__main__":
     img = capture_image()
-    ndx = 0
     regions = []
     imgs = split_image(img)
-    cv2.imwrite("out%d.png" % ndx, imgs[0])
-    ndx = ndx+1
 
-    find_region(imgs[0], [(79, 101, 142), (86,100,148), (105, 102, 153), (128,96,138), (147,99,145)])
+    tests = [
+        [(79, 101, 142), (86, 100, 148), (105, 102, 153), (128, 96, 138), (147, 99, 145)],
+        [(249, 246, 143), (228, 240, 153), (220, 241, 152), (166, 210, 134), (124, 183, 113)],
+    ]
+
+    ndx = 0
+    for test in tests:
+        find_region(imgs[ndx], test)
+        ndx += 1
 
 
 
