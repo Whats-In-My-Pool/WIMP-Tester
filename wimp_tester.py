@@ -40,12 +40,15 @@ def run_tests():
 
         image = capture_image()
 
-        colors = get_results(image)
+        slice_list = split_image(image)
+
+        colors = []
+        for slice in slice_list:
+            colors.append(find_color(slice))
 
         if len(colors) != len(tests):
             print("error: incorrect number of tests found. %d tests found, should be %d!" % (len(colors), len(tests)))
             return
-
 
         for test in get_chemical_tests(strip["fields"]["test_strip"]):
             result = {}

@@ -25,91 +25,20 @@ def get_delta_e(color1, color2):
     return delta_e_cie2000(color1_lab, color2_lab)
 
 
-def find_region(image, colors):
-    cv2.namedWindow("Region")
-    matches = {}
-    for color in colors:
-        color = (color[0] - 132, color[1] - 150, color[2] - 119)
-        color = colorsys.rgb_to_hsv(*color)
-
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-
-        lower = np.array([color[0] - 75, color[1] - 75, color[2] - 75])
-        upper = np.array([color[0] + 75, color[1] + 75, color[2] + 75])
-
-        mask = cv2.inRange(image, lower, upper)
-        output = cv2.bitwise_and(image, image, mask=mask)
-
-        hue, saturation, value = cv2.split(output)
-        cv2.resizeWindow('Region', 250, 250)
-        cv2.imshow("Region", output)
-        cv2.waitKey(0)
-
-        retval, threshold = cv2.threshold(value, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-
-        contours, hierarchy = cv2.findContours(threshold, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-
-        if len(contours) > 0:
-            largest_contour = contours[0]
-            for contour in contours[1:]:
-                if cv2.contourArea(contour) > cv2.contourArea(largest_contour):
-                    largest_contour = contour
-
-            matches[color] = largest_contour
-
-    if len(matches) > 0:
-        match_list = []
-        for key, value in matches.items():
-            match_list.append((key, value))
-
-        best_match = match_list[0]
-
-        region_color = get_color_in_region(image, best_match[1])
-        key_color = best_match[0]
-        best_match_delta = get_delta_e(region_color, key_color)
-
-        for match in match_list:
-            region_color = get_color_in_region(image, match[1])
-            key_color = match[0]
-
-            delta = get_delta_e(region_color, key_color)
-
-            if delta < best_match_delta:
-                best_match = match
-                best_match_delta = delta
-
-        cv2.drawContours(image, [best_match[1]], -1, (0, 0, 0), 2)
-
-        cv2.imshow("Region", image)
-        cv2.waitKey(0)
-
-
-    cv2.destroyAllWindows()
-
-'''
-def find_region(image, sat_threshold, hue_threshold, inv_sat, inv_hue, sat_thresh_arg, hue_thresh_arg):
+def find_color(image):
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
     hue, saturation, value = cv2.split(hsv)
 
-    if inv_hue:
-        hue = cv2.bitwise_not(hue)
-
-    if inv_sat:
-        sat = cv2.bitwise_not(saturation)
+    hue = cv2.bitwise_not(hue)
 
     blur_sat = cv2.GaussianBlur(saturation, (5, 5), 0)
 
     blur_hue = cv2.GaussianBlur(hue, (5, 5), 0)
 
-    cv2.imshow("Hue", blur_hue)
-    cv2.imshow("Sat", blur_sat)
+    retval, thresholded_sat = cv2.threshold(blur_sat, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
-    cv2.waitKey(0)
-
-    retval, thresholded_sat = cv2.threshold(blur_sat, sat_threshold, 255, sat_thresh_arg)
-
-    retval, thresholded_hue = cv2.threshold(blur_hue, hue_threshold, 255, hue_thresh_arg)
+    retval, thresholded_hue = cv2.threshold(blur_hue, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
 
     thresholded = np.add(thresholded_hue, thresholded_sat)
 
@@ -117,22 +46,33 @@ def find_region(image, sat_threshold, hue_threshold, inv_sat, inv_hue, sat_thres
 
     contours, hierarchy = cv2.findContours(median_filtered, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
-    max_contour = contours[0]
-    max_area = cv2.contourArea(max_contour)
-    for contour in contours[1:]:
-        area = cv2.contourArea(contour)
+    if len(contours) > 0:
+        max_contour = contours[0]
+        for contour in contours[1:]:
+            area = cv2.contourArea(contour)
+            if cv2.contourArea(max_contour) < area:
+                max_contour = contour
 
-        cv2.drawContours(image, [contour], -1, (0, 255, 0), 2)
-        if area > max_area:
-            max_contour = contour
+        if cv2.contourArea(max_contour) > 500:
+            cv2.drawContours(image, [max_contour], -1, (0, 255, 0), 2)
 
-    cv2.imshow("contour", image)
+            cv2.imshow("output", image)
 
-    cv2.waitKey(0)
+            cv2.waitKey(0)
 
-    cv2.destroyAllWindows()
-    return max_contour
-'''
+            cv2.destroyAllWindows()
+            color = get_color_in_region(image, max_contour)
+        else:
+            y, x, _ = image.shape
+
+            color = image[int(y / 2), int(x / 2)]
+    else:
+        y, x, _ = image.shape
+
+        color = image[y/2, x/2]
+
+    return convert_bgr_rbg(color)
+
 
 def get_color_in_region(image, region):
     # compute the center of the contour
@@ -143,7 +83,7 @@ def get_color_in_region(image, region):
 
     avg = get_avg(image[cY - radius_avg:cY + radius_avg, cX - radius_avg:cX + radius_avg])
 
-    return convert_bgr_rbg(avg)
+    return avg
 
 def split_image(image):
     width = image.shape[1]
@@ -236,10 +176,10 @@ def capture_image():
             time.sleep(3)
             camera.resolution = (820, 616)
 
-            camera.awb_mode('sunlight')
-            camera.exposure_mode('backlight')
+            camera.awb_mode = 'sunlight'
+            camera.exposure_mode = 'backlight'
 
-            camera.brightness(75)
+            camera.brightness(65)
             with PiRGBArray(camera) as stream:
                 camera.capture(stream, format='bgr')
                 time.sleep(1)
@@ -264,7 +204,7 @@ def capture_image():
         return image
     except Exception as e:
         print(e)
-        img = cv2.imread("new_model.jpg")
+        img = cv2.imread("tmp.png")
         return img
 
 
@@ -352,21 +292,6 @@ if __name__ == "__main__":
     regions = []
     imgs = split_image(img)
 
-    tests = [
-        [(79, 101, 142), (86, 100, 148), (105, 102, 153), (128, 96, 138), (147, 99, 145)],
-        [(249, 246, 143), (228, 240, 153), (220, 241, 152), (166, 210, 134), (124, 183, 113)],
-    ]
-
     ndx = 0
-    for test in tests:
-        find_region(imgs[ndx], test)
-        ndx += 1
-
-
-
-
-
-
-    #demo("tmp.png")
-    # image = capture_image()
-    # get_results(image)
+    for img in imgs:
+        print(find_color(img))
