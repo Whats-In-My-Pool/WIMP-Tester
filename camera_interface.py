@@ -173,19 +173,16 @@ def capture_image():
         time.sleep(1)
 
         with PiCamera() as camera:
+            camera.resolution = (832, 624)
+            camera.shutter_speed = 500
+            image = np.empty((624, 832, 3), dtype=np.uint8)
+
+            camera.shutter_speed = 500
+
             time.sleep(3)
-            camera.resolution = (820, 616)
 
-            camera.awb_mode = 'sunlight'
-            camera.exposure_mode = 'backlight'
-
-            camera.brightness(65)
-            with PiRGBArray(camera) as stream:
-                camera.capture(stream, format='bgr')
-                time.sleep(1)
-                image = stream.array
-
-
+            camera.capture(image, format='bgr')
+            time.sleep(1)
 
         GPIO.output(18, 0)
 
@@ -198,7 +195,7 @@ def capture_image():
         rotM = cv2.getRotationMatrix2D((cols / 2, rows / 2), -92, 1)
         rot_image = cv2.warpAffine(image, rotM, (cols, rows))
 
-        rot_image = rot_image[300:355, 102:680]
+        rot_image = rot_image[310:375, 102:680]
 
         cv2.imwrite("tmp.png", rot_image)
         return image
