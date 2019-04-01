@@ -54,13 +54,6 @@ def find_color(image):
                 max_contour = contour
 
         if cv2.contourArea(max_contour) > 500:
-            cv2.drawContours(image, [max_contour], -1, (0, 255, 0), 2)
-
-            cv2.imshow("output", image)
-
-            cv2.waitKey(0)
-
-            cv2.destroyAllWindows()
             color = get_color_in_region(image, max_contour)
         else:
             y, x, _ = image.shape
