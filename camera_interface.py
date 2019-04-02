@@ -1,7 +1,6 @@
 import numpy as np
 import cv2
 import time
-import colorsys
 from colormath.color_objects import sRGBColor, LabColor
 from colormath.color_conversions import convert_color
 from colormath.color_diff import delta_e_cie2000
@@ -14,6 +13,7 @@ beta = 2.0
 radius_avg = 1
 crop_box = 0
 
+
 def get_delta_e(color1, color2):
     color1_rgb = sRGBColor(color1[0] / 255.0, color1[1] / 255.0, color1[2] / 255.0)
     color2_rgb = sRGBColor(color2[0] / 255.0, color2[1] / 255.0, color2[2] / 255.0)
@@ -24,8 +24,12 @@ def get_delta_e(color1, color2):
 
     return delta_e_cie2000(color1_lab, color2_lab)
 
+def show_image(image):
+    cv2.imshow("Output", image)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
 
-def find_color(image):
+def get_contours(image):
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
 
     hue, saturation, value = cv2.split(hsv)
@@ -44,7 +48,12 @@ def find_color(image):
 
     median_filtered = cv2.medianBlur(thresholded, 5)
 
-    contours, hierarchy = cv2.findContours(median_filtered, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(median_filtered, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+    return contours
+
+def find_color(image):
+    contours = get_contours(image)
 
     if len(contours) > 0:
         max_contour = contours[0]
@@ -53,18 +62,29 @@ def find_color(image):
             if cv2.contourArea(max_contour) < area:
                 max_contour = contour
 
-        if cv2.contourArea(max_contour) > 500:
+        if cv2.contourArea(max_contour) > 2000:
+            y, x, _ = image.shape
+            color = get_color_at_point(image, x / 2, y / 2)
+
+        elif cv2.contourArea(max_contour) > 500:
             color = get_color_in_region(image, max_contour)
+
         else:
             y, x, _ = image.shape
-
-            color = image[int(y / 2), int(x / 2)]
+            color = get_color_at_point(image, x/2, y/2)
     else:
         y, x, _ = image.shape
 
-        color = image[y/2, x/2]
+        color = get_color_at_point(image, x/2, y/2)
 
     return convert_bgr_rbg(color)
+
+
+def get_color_at_point(image, x, y):
+    x = int(x)
+    y = int(y)
+
+    return get_avg(image[y - radius_avg:y + radius_avg, x - radius_avg:x + radius_avg])
 
 
 def get_color_in_region(image, region):
@@ -74,7 +94,7 @@ def get_color_in_region(image, region):
     cX = int(M["m10"] / M["m00"])
     cY = int(M["m01"] / M["m00"])
 
-    avg = get_avg(image[cY - radius_avg:cY + radius_avg, cX - radius_avg:cX + radius_avg])
+    avg = get_color_at_point(image, cX, cY)
 
     return avg
 
