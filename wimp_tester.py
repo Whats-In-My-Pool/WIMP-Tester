@@ -5,8 +5,8 @@ import requests
 from camera_interface import *
 
 
-url = 'http://wimpsite.ahines.net/WIMPSite/api/'
-#url = 'http://localhost:8000/WIMPSite/api/'
+#url = 'http://wimpsite.ahines.net/WIMPSite/api/'
+url = 'http://localhost:8000/WIMPSite/api/'
 
 def get_current_tests():
     test_url = url + "test/scheduled_tests/"
@@ -39,6 +39,8 @@ def run_tests():
         tests = get_chemical_tests(strip["fields"]["test_strip"])
 
         image = capture_image()
+        color_chart = cv2.imread("color_chart.png")
+        image = color_shift_image(color_chart, image)
 
         slice_list = split_image(image)
 

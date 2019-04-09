@@ -10,7 +10,7 @@ LED_PIN = 18
 alpha = 1
 beta = 2.0
 
-radius_avg = 1
+radius_avg = 3
 crop_box = 0
 
 
@@ -24,10 +24,12 @@ def get_delta_e(color1, color2):
 
     return delta_e_cie2000(color1_lab, color2_lab)
 
+
 def show_image(image):
     cv2.imshow("Output", image)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
+
 
 def get_contours(image):
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
@@ -98,6 +100,7 @@ def get_color_in_region(image, region):
 
     return avg
 
+
 def split_image(image):
     width = image.shape[1]
     slice_width = int(width/6)
@@ -110,15 +113,6 @@ def split_image(image):
         images.append(slice)
 
     return images
-
-
-def get_results(image):
-
-    regions = find_regions(image)
-
-    colors = get_color_in_regions(image, regions)
-
-    return colors
 
 
 def get_avg(array):
@@ -170,6 +164,54 @@ def get_error(a, b):
 
 def convert_bgr_rbg(bgr):
     return bgr[2], bgr[1], bgr[0]
+
+
+def color_shift_image(color_chart, image):
+    color_chart = cv2.cvtColor(color_chart, cv2.COLOR_BGR2LAB)
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+
+    color_chart_mean = get_channels_mean(color_chart)
+    color_chart_std = get_channels_std(color_chart)
+
+    image_mean = get_channels_mean(image)
+    image_std = get_channels_std(image)
+
+    image_channels = cv2.split(image)
+
+    ndx = 0
+    result_channels = []
+    for channel in image_channels:
+        result_channel = np.subtract(channel, image_mean[ndx])
+        
+        result_channel = np.multiply(result_channel, image_std[ndx]/(color_chart_std[ndx]*0.15))
+        result_channel = np.add(result_channel, color_chart_mean[ndx])
+        result_channel = np.clip(result_channel, 0, 255)
+
+        result_channels.append(result_channel)
+        ndx += 1
+
+
+    result_channels[0] = result_channels[0] * 0.75
+    result = cv2.merge(result_channels)
+
+    result = cv2.cvtColor(result.astype("uint8"), cv2.COLOR_LAB2BGR)
+    return result
+
+
+def get_channels_mean(image):
+    avg = []
+    for channel in cv2.split(image):
+        avg.append(np.mean(channel))
+
+    return avg
+
+
+def get_channels_std(image):
+    std = []
+    for channel in cv2.split(image):
+        std.append(np.std(channel))
+
+    return std
 
 
 def capture_image():
@@ -299,9 +341,18 @@ def demo(img):
 
 if __name__ == "__main__":
     img = capture_image()
-    regions = []
-    imgs = split_image(img)
 
-    ndx = 0
-    for img in imgs:
-        print(find_color(img))
+    #img = cv2.imread("borb.jpg")
+    #color_chart = cv2.imread("sunset.jpg")
+    color_chart = cv2.imread("color_chart.png")
+
+    result = color_shift_image(color_chart, img)
+
+    cv2.imshow("Output", result)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+    cv2.imwrite("shifted_output.png", result)
+
+    splits = split_image(result)
+
