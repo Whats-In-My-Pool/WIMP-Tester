@@ -3,15 +3,17 @@ import random
 
 import requests
 from camera_interface import *
+from process_image import *
 
-
-#url = 'http://wimpsite.ahines.net/WIMPSite/api/'
+# url = 'http://wimpsite.ahines.net/WIMPSite/api/'
 url = 'http://localhost:8000/WIMPSite/api/'
+
 
 def get_current_tests():
     test_url = url + "test/scheduled_tests/"
 
     return requests.get(test_url).json()
+
 
 def get_chemical_tests(id):
     chemical_url = url + "test/test_strip"
@@ -40,13 +42,21 @@ def run_tests():
 
         image = capture_image()
         color_chart = cv2.imread("color_chart.png")
-        image = color_shift_image(color_chart, image)
 
-        slice_list = split_image(image)
+        test_slice_list = split_image(image)
+        color_chart_slice = split_image(color_chart, horz=True)
 
         colors = []
-        for slice in slice_list:
-            colors.append(find_color(slice))
+
+        shifts = [(25, 0, 0), (25, 0, 0), (25, 0, 0), (25, 0, 0), (255, 0, 0), (0, 0, 0), ]
+        ndx = 0
+        for slice in test_slice_list:
+            contours = get_contours(slice)
+            color_shifted_slice = color_shift_image(color_chart_slice[ndx], slice)
+
+            color = find_color(contours, color_shifted_slice)
+            colors.append(color)
+            ndx += 1
 
         if len(colors) != len(tests):
             print("error: incorrect number of tests found. %d tests found, should be %d!" % (len(colors), len(tests)))
@@ -58,7 +68,7 @@ def run_tests():
 
             pos = test["fields"]["test_number"]
 
-            color = colors[len(colors) - pos]
+            color = colors[pos - 1]
 
             result["r"] = int(color[0])
             result["g"] = int(color[1])
